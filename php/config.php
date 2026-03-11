@@ -39,6 +39,20 @@ $table_businesses = "CREATE TABLE IF NOT EXISTS businesses (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )";
 
+$table_feedback = "CREATE TABLE IF NOT EXISTS feedback (
+    id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    business_id INT NOT NULL,
+    customer_name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    category VARCHAR(100),
+    comment TEXT,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+)";
+
 mysqli_query($conn, $table_users);
 mysqli_query($conn, $table_businesses);
+mysqli_query($conn, $table_feedback);
 ?>

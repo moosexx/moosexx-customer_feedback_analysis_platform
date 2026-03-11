@@ -4,6 +4,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileForm = document.getElementById('profileForm');
     const messageDiv = document.getElementById('message');
 
+    // Create notification popup element
+    function createNotification() {
+        const popup = document.createElement('div');
+        popup.className = 'notification-popup';
+        popup.innerHTML = `
+            <svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span class="notification-message"></span>
+            <button class="notification-close" aria-label="Close">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        `;
+        document.body.appendChild(popup);
+        
+        // Close button functionality
+        const closeBtn = popup.querySelector('.notification-close');
+        closeBtn.addEventListener('click', () => hideNotification());
+        
+        return popup;
+    }
+
+    function showNotification(msg, isError = false) {
+        let popup = document.querySelector('.notification-popup');
+        if (!popup) {
+            popup = createNotification();
+        }
+        
+        const messageEl = popup.querySelector('.notification-message');
+        const iconEl = popup.querySelector('.notification-icon');
+        
+        messageEl.textContent = msg;
+        
+        if (isError) {
+            popup.classList.add('error');
+            iconEl.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            `;
+        } else {
+            popup.classList.remove('error');
+            iconEl.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            `;
+        }
+        
+        popup.classList.add('show');
+        
+        // Auto-hide after 4 seconds
+        setTimeout(() => hideNotification(), 4000);
+    }
+
+    function hideNotification() {
+        const popup = document.querySelector('.notification-popup');
+        if (popup) {
+            popup.classList.remove('show');
+        }
+    }
+
     function showMessage(msg, isError = false) {
         if (messageDiv) {
             messageDiv.textContent = msg;
@@ -32,14 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (result.status === 'success') {
-                    showMessage(result.message);
+                    showNotification(result.message + ' Redirecting to login...');
                     setTimeout(() => window.location.href = 'login.php', 2000);
                 } else {
-                    showMessage(result.message || 'Registration failed', true);
+                    showNotification(result.message || 'Registration failed', true);
                 }
             } catch (error) {
                 console.error('Fetch error:', error);
-                showMessage('Network error or server is offline.', true);
+                showNotification('Network error or server is offline.', true);
             }
         });
     }
@@ -65,18 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (result.status === 'success') {
-                    showMessage(result.message);
-                    setTimeout(() => window.location.href = 'profile.php', 1000);
+                    showNotification(result.message + ' Redirecting...');
+                    const redirectUrl = result.redirect || 'dashboard.php';
+                    setTimeout(() => window.location.href = redirectUrl, 1500);
                 } else {
-                    showMessage(result.message || 'Login failed', true);
+                    showNotification(result.message || 'Login failed', true);
                 }
             } catch (error) {
                 console.error('Fetch error:', error);
-                showMessage('Network error or server is offline.', true);
+                showNotification('Network error or server is offline.', true);
             }
         });
     }
-
+    
     if (profileForm) {
         // Fetch existing data
         fetch('../php/profile_action.php')
@@ -99,12 +160,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const result = await response.json();
                 if (result.status === 'success') {
-                    showMessage(result.message);
+                    showNotification(result.message + ' Redirecting to dashboard...');
+                    setTimeout(() => window.location.href = 'dashboard.php', 1500);
                 } else {
-                    showMessage(result.message || 'Saving profile failed', true);
+                    showNotification(result.message || 'Saving profile failed', true);
                 }
             } catch (error) {
-                showMessage('An error occurred. Please try again.', true);
+                showNotification('An error occurred. Please try again.', true);
             }
         });
     }

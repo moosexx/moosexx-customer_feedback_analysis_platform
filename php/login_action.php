@@ -37,9 +37,28 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
                             // Session already started at the top
                             $_SESSION["loggedin"] = true;
                             $_SESSION["id"] = $id;
-                            $_SESSION["email"] = $email;                            
+                            $_SESSION["email"] = $email;
                             
-                            echo json_encode(["status" => "success", "message" => "Login successful."]);
+                            // Check if user has a business profile
+                            $check_sql = "SELECT id FROM businesses WHERE user_id = ?";
+                            if($check_stmt = mysqli_prepare($conn, $check_sql)){
+                                mysqli_stmt_bind_param($check_stmt, "i", $id);
+                                if(mysqli_stmt_execute($check_stmt)){
+                                    mysqli_stmt_store_result($check_stmt);
+                                    if(mysqli_stmt_num_rows($check_stmt) > 0){
+                                        // User has business - redirect to dashboard
+                                        echo json_encode(["status" => "success", "message" => "Login successful.", "redirect" => "dashboard.php"]);
+                                    } else {
+                                        // No business - redirect to profile setup
+                                        echo json_encode(["status" => "success", "message" => "Login successful. Please set up your business.", "redirect" => "profile.php"]);
+                                    }
+                                } else {
+                                    echo json_encode(["status" => "error", "message" => "Database error."]);
+                                }
+                                mysqli_stmt_close($check_stmt);
+                            } else {
+                                echo json_encode(["status" => "error", "message" => "Server error."]);
+                            }
                         } else {
                             echo json_encode(["status" => "error", "message" => "Invalid email or password."]);
                         }

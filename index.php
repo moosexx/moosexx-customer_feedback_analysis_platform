@@ -14,7 +14,7 @@
             <!-- Replace src with your logo path -->
             <img src="public/images/logo.jpg" alt="FeedbackIQ" class="logo-img">
         </a>
-        <div class="nav-links">
+        <div class="nav-links" id="navLinks">
             <a href="#features">Features</a>
             <a href="#how-it-works">Process</a>
             <a href="#industries">Industries</a>
@@ -136,6 +136,36 @@
 
     <script>
         lucide.createIcons();
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (href !== '#' && href.length > 1) {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }
+            });
+        });
+        
+        // Smooth scroll to top when clicking logo
+        const logoLink = document.querySelector('.nav-logo');
+        if (logoLink) {
+            logoLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.scrollTo({
+                    top: 0,
+                    left: 0,
+                    behavior: 'smooth'
+                });
+            });
+        }
     </script>
 </body>
 </html>
