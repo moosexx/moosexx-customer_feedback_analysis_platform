@@ -46,7 +46,7 @@
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i data-lucide="bar-chart-3"></i></div>
-                <h3>Descriptive Analytics</h3>
+                <h3>Analytics</h3>
                 <p>Visualize trends and satisfaction scores through a high-definition dashboard. Understand exactly what's happening.</p>
             </div>
             <div class="feature-card">

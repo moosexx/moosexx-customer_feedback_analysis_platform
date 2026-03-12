@@ -75,6 +75,16 @@ document.addEventListener('DOMContentLoaded', () => {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(registerForm);
+            
+            // Validate passwords match
+            const password = formData.get('password');
+            const confirmPassword = formData.get('confirm_password');
+            
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match!', true);
+                return;
+            }
+            
             try {
                 const response = await fetch('../php/register_action.php', {
                     method: 'POST',

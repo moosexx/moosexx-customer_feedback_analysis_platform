@@ -26,6 +26,10 @@ if(isset($_SESSION["loggedin"]) && $_SESSION["loggedin"] === true){
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" required>
             </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
             <button type="submit">Register</button>
         </form>
         <div id="message"></div>

@@ -38,7 +38,26 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     if($stmt = mysqli_prepare($conn, $sql)){
         mysqli_stmt_bind_param($stmt, "sssi", $business_name, $industry, $description, $user_id);
         if(mysqli_stmt_execute($stmt)){
-            echo json_encode(["status" => "success", "message" => "Business profile saved successfully."]);
+            // Get the business ID
+            $business_id = mysqli_insert_id($conn);
+            if($business_id == 0) {
+                // For UPDATE, fetch the existing ID
+                $fetch_sql = "SELECT id FROM businesses WHERE user_id = ?";
+                if($fetch_stmt = mysqli_prepare($conn, $fetch_sql)){
+                    mysqli_stmt_bind_param($fetch_stmt, "i", $user_id);
+                    mysqli_stmt_execute($fetch_stmt);
+                    $result = mysqli_stmt_get_result($fetch_stmt);
+                    if($row = mysqli_fetch_assoc($result)){
+                        $business_id = $row['id'];
+                    }
+                    mysqli_stmt_close($fetch_stmt);
+                }
+            }
+            echo json_encode([
+                "status" => "success", 
+                "message" => "Business profile saved successfully.",
+                "business_id" => $business_id
+            ]);
         } else {
             echo json_encode(["status" => "error", "message" => "Something went wrong. Please try again later."]);
         }

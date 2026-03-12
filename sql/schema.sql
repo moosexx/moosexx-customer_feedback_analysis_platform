@@ -30,3 +30,13 @@ CREATE TABLE IF NOT EXISTS feedback (
     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
+
+-- Create Custom Questions table
+CREATE TABLE IF NOT EXISTS custom_questions (
+    id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    question_text TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

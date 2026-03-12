@@ -35,7 +35,7 @@ mysqli_close($conn);
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="centered-layout">
-    <div class="container" style="max-width: 500px;">
+    <div class="container" style="max-width: 600px;">
         <div class="profile-header">
             <h2>Set Up Your Business</h2>
             <p class="subtitle">Logged in as <strong><?php echo htmlspecialchars($_SESSION["email"]); ?></strong></p>
@@ -59,14 +59,61 @@ mysqli_close($conn);
                 <label for="description">Business Description</label>
                 <textarea id="description" name="description" rows="4"></textarea>
             </div>
-            <button type="submit">Save Profile</button>
+            <button type="submit">Save Profile & Generate QR Code</button>
         </form>
         <div id="message"></div>
+        
         <div class="link-container" style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-            <a href="dashboard.php" style="background: var(--primary-color); color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">Go to Dashboard</a>
             <a href="../php/logout.php" style="background: transparent; color: var(--text-main); padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; border: 1px solid var(--border-color);">Logout</a>
         </div>
     </div>
-    <script src="js/auth.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const profileForm = document.getElementById('profileForm');
+        const messageDiv = document.getElementById('message');
+        
+        // Fetch existing data
+        fetch('../php/profile_action.php')
+            .then(res => res.json())
+            .then(result => {
+                if (result.status === 'success' && result.data) {
+                    document.getElementById('business_name').value = result.data.business_name;
+                    document.getElementById('industry').value = result.data.industry;
+                    document.getElementById('description').value = result.data.description;
+                }
+            });
+
+        profileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(profileForm);
+            try {
+                const response = await fetch('../php/profile_action.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    // Show success message
+                    messageDiv.textContent = result.message;
+                    messageDiv.className = 'message success';
+                    
+                    // Redirect to dashboard immediately
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.php';
+                    }, 1000);
+                } else {
+                    messageDiv.textContent = result.message || 'Saving profile failed';
+                    messageDiv.className = 'message error';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.className = 'message error';
+                console.error('Error:', error);
+            }
+        });
+    });
+    </script>
 </body>
 </html>

@@ -108,9 +108,10 @@ while($row = mysqli_fetch_assoc($trend_result)){
 }
 mysqli_stmt_close($stmt);
 
-// Generate prescriptive recommendations
+// Generate prescriptive recommendations based on actual data
 $recommendations = [];
 
+// Check for low average rating
 if($avg_rating < 3.5 && $total_feedback > 0){
     $recommendations[] = [
         'type' => 'warning',
@@ -120,24 +121,41 @@ if($avg_rating < 3.5 && $total_feedback > 0){
     ];
 }
 
-if(isset($categories[0]) && strtolower($categories[0]['category']) == 'service' && $categories[0]['count'] > ($total_feedback * 0.3)){
-    $recommendations[] = [
-        'type' => 'info',
-        'title' => 'Focus on Service Quality',
-        'description' => 'Service-related feedback is prominent. Review your service protocols and consider staff training programs.',
-        'priority' => 'medium'
-    ];
+// Check for service-related feedback dominance
+if(!empty($categories)){
+    $top_category = strtolower($categories[0]['category']);
+    $top_category_count = $categories[0]['count'];
+    if(in_array($top_category, ['service', 'staff', 'support']) && $top_category_count > ($total_feedback * 0.3)){
+        $recommendations[] = [
+            'type' => 'info',
+            'title' => 'Focus on ' . ucfirst($categories[0]['category']) . ' Quality',
+            'description' => ucfirst($categories[0]['category']) . '-related feedback is prominent (' . $top_category_count . ' mentions). Review your ' . $top_category . ' protocols and consider staff training programs.',
+            'priority' => 'medium'
+        ];
+    }
 }
 
-if($recent_feedback < ($total_feedback / 4) && $total_feedback > 10){
-    $recommendations[] = [
-        'type' => 'success',
-        'title' => 'Maintain Current Strategy',
-        'description' => 'Recent feedback trends are stable. Continue your current approach and monitor for sustained improvement.',
-        'priority' => 'low'
-    ];
+// Check for recent feedback trends
+if($total_feedback > 10){
+    $expected_recent = $total_feedback / 4;
+    if($recent_feedback < $expected_recent){
+        $recommendations[] = [
+            'type' => 'info',
+            'title' => 'Increase Customer Engagement',
+            'description' => 'Recent feedback (' . $recent_feedback . ') is lower than expected. Consider promoting QR code usage to gather more customer insights.',
+            'priority' => 'medium'
+        ];
+    } else {
+        $recommendations[] = [
+            'type' => 'success',
+            'title' => 'Maintain Current Strategy',
+            'description' => 'Recent feedback trends are stable with ' . $recent_feedback . ' submissions this week. Continue your current approach and monitor for sustained improvement.',
+            'priority' => 'low'
+        ];
+    }
 }
 
+// If no specific recommendations, provide general guidance
 if(empty($recommendations)){
     $recommendations[] = [
         'type' => 'success',
@@ -160,6 +178,8 @@ mysqli_close($conn);
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- QR Code Library - Using qrcodejs -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         .dashboard-container {
             max-width: 1400px;
@@ -167,117 +187,27 @@ mysqli_close($conn);
             padding: 2rem;
         }
 
-        /* Thin Navigation */
-        .navbar {
-            background: white;
-            padding: 0.75rem 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        /* Dashboard-specific navbar adjustments */
+        .dashboard-container + .navbar {
             position: sticky;
             top: 0;
-            z-index: 1000;
-        }
-
-        .nav-logo {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-            color: var(--text-main);
-            font-weight: 600;
-            font-size: 1.25rem;
-        }
-
-        .logo-img {
-            width: 64px;
-            height: 64px;
-            object-fit: cover;
-            border-radius: 10px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-
-        .nav-links a {
-            text-decoration: none;
-            color: var(--text-muted);
-            font-weight: 500;
-            transition: color 0.2s;
-            padding: 0.5rem 0;
-        }
-
-        .nav-links a:hover {
-            color: var(--primary-color);
-        }
-
-        /* Hamburger Menu */
-        .hamburger {
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            cursor: pointer;
-            padding: 0.5rem;
-            background: transparent;
-            border: none;
-        }
-
-        .hamburger span {
-            width: 24px;
-            height: 2px;
-            background: var(--text-main);
-            border-radius: 2px;
-            transition: all 0.3s;
-        }
-
-        .hamburger.active span:nth-child(1) {
-            transform: rotate(45deg) translate(6px, 6px);
-        }
-
-        .hamburger.active span:nth-child(2) {
-            opacity: 0;
-        }
-
-        .hamburger.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(6px, -6px);
         }
 
         @media (max-width: 768px) {
-            .navbar {
-                padding: 0.75rem 1rem;
+            .nav-toggle {
+                display: block;
+                cursor: pointer;
+                padding: 0.5rem;
             }
 
-            .hamburger {
-                display: flex;
+            .nav-toggle-checkbox:checked ~ .nav-links {
+                max-height: 300px;
             }
 
             .nav-links {
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: white;
-                flex-direction: column;
-                gap: 0;
-                padding: 0;
                 max-height: 0;
                 overflow: hidden;
                 transition: max-height 0.3s ease;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }
-
-            .nav-links.active {
-                max-height: 200px;
-            }
-
-            .nav-links a {
-                padding: 1rem 2rem;
-                border-bottom: 1px solid var(--border-color);
-                width: 100%;
-                display: block;
             }
         }
 
@@ -310,6 +240,13 @@ mysqli_close($conn);
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 2rem;
             margin-bottom: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
         }
 
         .stat-card {
@@ -511,50 +448,110 @@ mysqli_close($conn);
             .header-actions {
                 width: 100%;
             }
+        }
 
-            .stats-grid {
+        /* QR Code Section */
+        .qr-section {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 3rem;
+        }
+
+        .qr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .qr-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .qr-content {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .qr-canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            background: #f9fafb;
+            border-radius: var(--radius-md);
+        }
+
+        .qr-canvas-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .qr-info h4 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+        }
+
+        .qr-info p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .qr-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .qr-actions button {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .qr-content {
                 grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .qr-canvas-container {
+                order: -1;
+            }
+
+            .qr-actions {
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body class="centered-layout" style="background: var(--bg-muted); display: block;">
     <nav class="navbar">
-        <a href="index.php" class="nav-logo">
-            <img src="images/logo.jpg" alt="FeedbackIQ" class="logo-img">
+        <label for="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+            <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
+        </label>
+        <input type="checkbox" id="nav-toggle" class="nav-toggle-checkbox" style="display: none;">
+        <a href="dashboard.php" class="nav-logo" style="visibility: hidden; pointer-events: none;">
+            <span style="font-size: 1.5rem; font-weight: 700;">FeedbackIQ</span>
         </a>
-        <button class="hamburger" id="hamburger" aria-label="Toggle menu">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-        <div class="nav-links" id="navLinks">
+        <div class="nav-links">
             <a href="dashboard.php">Dashboard</a>
-            <a href="profile.php">Profile</a>
-            <a href="../php/logout.php" class="btn-secondary">Logout</a>
+            <a href="edit_profile.php">Profile</a>
+            <a href="#" id="logoutBtn" class="btn-secondary">Logout</a>
         </div>
     </nav>
 
-    <script>
-        // Hamburger menu toggle
-        const hamburger = document.getElementById('hamburger');
-        const navLinks = document.getElementById('navLinks');
-        
-        if(hamburger) {
-            hamburger.addEventListener('click', () => {
-                hamburger.classList.toggle('active');
-                navLinks.classList.toggle('active');
-            });
-            
-            // Close menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!hamburger.contains(e.target) && !navLinks.contains(e.target)) {
-                    hamburger.classList.remove('active');
-                    navLinks.classList.remove('active');
-                }
-            });
-        }
-    </script>
 
     <div class="dashboard-container">
         <div class="dashboard-header">
@@ -562,13 +559,35 @@ mysqli_close($conn);
                 <h1>Welcome back, <?php echo htmlspecialchars($_SESSION["email"]); ?>!</h1>
                 <p class="dashboard-subtitle"><?php echo htmlspecialchars($business['business_name']); ?> • <?php echo ucfirst($business['industry']); ?></p>
             </div>
-            <div class="header-actions">
-                <button class="btn-secondary" onclick="window.print()">
-                    <i data-lucide="printer"></i> Export Report
-                </button>
-                <a href="profile.php" class="btn-primary">
-                    <i data-lucide="settings"></i> Manage Profile
-                </a>
+        </div>
+
+        <!-- QR Code Section -->
+        <div class="qr-section">
+            <div class="qr-header">
+                <h2 class="qr-title">
+                    <i data-lucide="qr-code" style="width: 28px; height: 28px;"></i>
+                    Your Business QR Code
+                </h2>
+            </div>
+            <div class="qr-content">
+                <div class="qr-canvas-container">
+                    <canvas id="qrCanvas"></canvas>
+                </div>
+                <div class="qr-info">
+                    <h4>Share Your Feedback Link</h4>
+                    <p>Scan this QR code with your phone camera to access the feedback form. Download it and display at your business location to start collecting customer insights.</p>
+                    <div class="qr-actions">
+                        <button id="downloadBtn" class="btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="download" style="width: 18px; height: 18px;"></i>
+                            Download QR Code
+                        </button>
+                        <button id="copyLinkBtn" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="copy" style="width: 18px; height: 18px;"></i>
+                            Copy Link
+                        </button>
+                    </div>
+                    <div id="copyMessage" style="margin-top: 0.75rem; color: var(--success-color); font-size: 0.875rem; display: none;">Link copied to clipboard!</div>
+                </div>
             </div>
         </div>
 
@@ -751,6 +770,73 @@ mysqli_close($conn);
 
     <script>
         lucide.createIcons();
+        
+        // Logout confirmation
+        document.getElementById('logoutBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '../php/logout.php';
+            }
+        });
+        
+        // Generate QR Code for business
+        const businessId = <?php echo $business_id; ?>;
+        const surveyUrl = window.location.origin + '/public/feedback_form.php?business_id=' + businessId;
+        
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvasContainer = document.getElementById('qrCanvas');
+            if (canvasContainer && typeof QRCode !== 'undefined') {
+                // Clear any existing QR code
+                canvasContainer.innerHTML = '';
+                
+                // Create a new div for the QR code to ensure proper rendering
+                const qrDiv = document.createElement('div');
+                qrDiv.style.display = 'inline-block';
+                
+                // Generate new QR code using qrcodejs library
+                const qrCodeObj = new QRCode(qrDiv, {
+                    text: surveyUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                // Append to container
+                canvasContainer.parentNode.replaceChild(qrDiv, canvasContainer);
+            } else if (canvasContainer) {
+                console.error('QRCode library not loaded');
+            }
+        });
+        
+        // Download QR Code
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const qrContainer = document.getElementById('qrCanvas');
+            if (qrContainer) {
+                const canvas = qrContainer.querySelector('canvas');
+                if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = 'feedback-qr-code.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }
+            }
+        });
+        
+        // Copy Link
+        document.getElementById('copyLinkBtn').addEventListener('click', () => {
+            navigator.clipboard.writeText(surveyUrl).then(() => {
+                const message = document.getElementById('copyMessage');
+                message.style.display = 'block';
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 3000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        });
         
         // Initialize charts
         <?php if(count($trend_data) > 0): ?>
