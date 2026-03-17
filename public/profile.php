@@ -87,7 +87,7 @@ mysqli_close($conn);
 
         profileForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(profileForm);
+            const formData = new FormData(profileForm); 
             try {
                 const response = await fetch('../php/profile_action.php', {
                     method: 'POST',

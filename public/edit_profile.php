@@ -10,7 +10,7 @@ require_once "../php/config.php";
 $user_id = $_SESSION["id"];
 
 // Get user information
-$user_sql = "SELECT email, created_at FROM users WHERE id = ?";
+$user_sql = "SELECT * FROM users WHERE id = ?";
 $stmt = mysqli_prepare($conn, $user_sql);
 mysqli_stmt_bind_param($stmt, "i", $user_id);
 mysqli_stmt_execute($stmt);
@@ -188,6 +188,11 @@ mysqli_close($conn);
             .form-actions button {
                 width: 100%;
             }
+
+            /* Stack name fields on mobile */
+            .profile-section form > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
         }
     </style>
 </head>
@@ -238,9 +243,27 @@ mysqli_close($conn);
                 Account Information
             </h2>
             <form id="userForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="first_name">First Name</label>
+                        <input type="text" id="first_name" name="first_name" placeholder="First name" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="middle_name">Middle Name</label>
+                        <input type="text" id="middle_name" name="middle_name" placeholder="Middle name">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="last_name">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" placeholder="Last name" required>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="(+63) 123-456-7890">
                 </div>
                 <div class="form-group">
                     <label for="new_password">New Password (leave empty to keep current)</label>
@@ -275,6 +298,38 @@ mysqli_close($conn);
                         <option value="education" <?php echo $business['industry'] === 'education' ? 'selected' : ''; ?>>Education</option>
                         <option value="other" <?php echo $business['industry'] === 'other' ? 'selected' : ''; ?>>Other</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label for="logo_upload">Business Logo</label>
+                    <?php if(!empty($business['logo_path']) && file_exists('../public/uploads/logos/' . $business['logo_path'])): ?>
+                        <div style="margin-bottom: 1rem;">
+                            <img src="../public/uploads/logos/<?php echo htmlspecialchars($business['logo_path']); ?>" 
+                                 alt="Current Logo" 
+                                 style="max-width: 200px; max-height: 200px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        </div>
+                    <?php endif; ?>
+                    <input type="file" id="logo_upload" name="logo_upload" accept="image/*" style="margin-bottom: 0.5rem;">
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">Upload a logo (PNG, JPG, or GIF). Max size: 2MB.</p>
+                </div>
+                <div class="form-group">
+                    <label for="business_address">Business Address</label>
+                    <textarea id="business_address" name="business_address" rows="3" placeholder="Enter business street address"><?php echo htmlspecialchars($business['business_address'] ?? ''); ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city" value="<?php echo htmlspecialchars($business['city'] ?? ''); ?>" placeholder="Enter city">
+                </div>
+                <div class="form-group">
+                    <label for="state">State/Province</label>
+                    <input type="text" id="state" name="state" value="<?php echo htmlspecialchars($business['state'] ?? ''); ?>" placeholder="Enter state or province">
+                </div>
+                <div class="form-group">
+                    <label for="postal_code">Postal/ZIP Code</label>
+                    <input type="text" id="postal_code" name="postal_code" value="<?php echo htmlspecialchars($business['postal_code'] ?? ''); ?>" placeholder="Enter postal code" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="country">Country</label>
+                    <input type="text" id="country" name="country" value="<?php echo htmlspecialchars($business['country'] ?? ''); ?>" placeholder="Enter country">
                 </div>
                 <div class="form-group">
                     <label for="description">Business Description</label>
@@ -408,7 +463,7 @@ mysqli_close($conn);
             }
         });
 
-        // Load existing questions
+        // Get existing questions
         async function loadQuestions() {
             try {
                 const response = await fetch('../php/edit_profile_action.php?action=get_questions');
@@ -419,6 +474,56 @@ mysqli_close($conn);
                 }
             } catch (error) {
                 console.error('Error loading questions:', error);
+            }
+        }
+
+        // Parse full name into first, middle, and last name (or use existing separate fields)
+        function parseFullName(fullName) {
+            if (!fullName || fullName.trim() === '') {
+                return { firstName: '', middleName: '', lastName: '' };
+            }
+            
+            const parts = fullName.trim().split(/\s+/);
+            const numParts = parts.length;
+            
+            if (numParts === 0) {
+                return { firstName: '', middleName: '', lastName: '' };
+            } else if (numParts === 1) {
+                return { firstName: parts[0], middleName: '', lastName: '' };
+            } else if (numParts === 2) {
+                return { firstName: parts[0], middleName: '', lastName: parts[1] };
+            } else {
+                const firstName = parts[0];
+                const lastName = parts[numParts - 1];
+                const middleName = parts.slice(1, numParts - 1).join(' ');
+                return { firstName, middleName, lastName };
+            }
+        }
+
+        // Load user data and populate name fields
+        async function loadUserData() {
+            try {
+                const response = await fetch('../php/edit_profile_action.php?action=get_user_data');
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.user) {
+                    // Try to use separate name fields first, fall back to parsing full_name
+                    if (result.user.first_name !== undefined) {
+                        document.getElementById('first_name').value = result.user.first_name || '';
+                        document.getElementById('middle_name').value = result.user.middle_name || '';
+                        document.getElementById('last_name').value = result.user.last_name || '';
+                    } else {
+                        // Fallback for backward compatibility
+                        const { firstName, middleName, lastName } = parseFullName(result.user.full_name);
+                        document.getElementById('first_name').value = firstName;
+                        document.getElementById('middle_name').value = middleName;
+                        document.getElementById('last_name').value = lastName;
+                    }
+                    document.getElementById('phone').value = result.user.phone || '';
+                    document.getElementById('email').value = result.user.email;
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
             }
         }
 
@@ -539,7 +644,8 @@ mysqli_close($conn);
             }
         });
 
-        // Load questions on page load
+        // Load questions and user data on page load
+        loadUserData();
         loadQuestions();
     </script>
 </body>
